@@ -72,6 +72,11 @@
   "If non-nil, use native json parsing if available."
   :group 'phpactor
   :type 'boolean)
+
+(defcustom phpactor-use-xref t
+  "Defines phpactor xref backend."
+  :group 'phpactor
+  :type 'boolean)
 
 ;; Variables
 (defvar phpactor--debug nil)
@@ -722,57 +727,6 @@ function."
   (let ((arguments (phpactor--command-argments :source :path)))
     (apply #'phpactor-action-dispatch (phpactor--rpc "transform" (append arguments (list :transform "implement_contracts"))))))
 
-(require 'xref)
-
-(defun xref-phpactor-xref-backend ()
-  "Xref-phpactor backend for Xref."
-  'xref-phpactor)
-
-(cl-defmethod xref-backend-definitions ((_backend (eql xref-phpactor)) symbol)
-  (xref-phpactor--xref-find-definitions symbol))
-
-(defun xref-phpactor--xref-find-definitions (symbol)
-  "Return a list of candidates matching SYMBOL."
-  (seq-map (lambda (candidate)
-             (xref-phpactor--make-xref candidate))
-           (xref-phpactor--find-definitions symbol)))
-
-(defun xref-phpactor--make-xref (candidate)
-  "Return a new Xref object built from CANDIDATE."
-  (xref-make (map-elt candidate 'match)
-             (xref-make-file-location (map-elt candidate 'file)
-                                      (map-elt candidate 'line)
-                                      0)))
-
-(defun xref-phpactor--find-definitions (symbol)
-  "Return a list of definitions for SYMBOL from an ag search."
-  (xref-phpactor--find-candidates symbol))
-
-(defun xref-phpactor--find-candidates (symbol)
-  (let ((current-references phpactor-references)
-        matches)
-    (dolist (file-reference current-references)
-      (let ((path (plist-get file-reference :file)))
-        (dolist (reference (plist-get file-reference :references))
-          (when path
-            (push 'matches (list (cons 'file path)
-                                        (cons 'line (plist-get reference :line_no))
-                                        ;; (cons 'symbol symbol)
-                                        ;; (cons 'match match)
-                                        ))))))
-    matches))
-
-(defun xref-phpactor--candidate (symbol file-reference)
-  "Return a candidate alist built from SYMBOL and a raw MATCH result.
-The MATCH is one output result from the ag search."
-  (let* ()
-    ;; Some minified JS files might match a search. To avoid cluttering the
-    ;; search result, we trim the output.
-    (list (cons 'file (expand-file-name (car attrs) (xref-js2--root-dir)))
-          (cons 'line (string-to-number (cadr attrs)))
-          (cons 'symbol symbol)
-          (cons 'match match))))
-
 ;;;###autoload
 (defun phpactor-find-references ()
   "Execute Phpactor RPC references action to find references."
@@ -780,6 +734,12 @@ The MATCH is one output result from the ag search."
   (let ((arguments (phpactor--command-argments :source :path :offset)))
     (apply #'phpactor-action-dispatch (phpactor--rpc "references" arguments))
     (phpactor-list-references)))
+
+;;;###autoload
+(defun phpactor--find-references ()
+  "Execute Phpactor RPC references action to find references."
+  (let ((arguments (phpactor--command-argments :source :path :offset)))
+    (apply #'phpactor-action-dispatch (phpactor--rpc "references" arguments))))
 
 ;;;###autoload
 (defun phpactor-replace-references ()
@@ -871,6 +831,9 @@ The MATCH is one output result from the ag search."
   (interactive)
   (let ((arguments (phpactor--command-argments :source :path :offset)))
     (apply #'phpactor-action-dispatch (phpactor--rpc "change_visibility" arguments))))
+
+(when phpactor-use-xref
+  (require 'phpactor-xref))
 
 (provide 'phpactor)
 ;;; phpactor.el ends here
