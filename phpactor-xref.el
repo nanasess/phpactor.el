@@ -84,4 +84,4 @@ which is really sub optimal."
     matches))
 
 (provide 'phpactor-xref)
-;;; phpactor-xref ends here
+;;; phpactor-xref.el ends here
