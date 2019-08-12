@@ -832,8 +832,8 @@ function."
   (let ((arguments (phpactor--command-argments :source :path :offset)))
     (apply #'phpactor-action-dispatch (phpactor--rpc "change_visibility" arguments))))
 
-(when phpactor-use-xref
-  (require 'phpactor-xref))
+(autoload 'phpactor-xref-backend "phpactor-xref"
+  "Phpactor backend for Xref.")
 
 (provide 'phpactor)
 ;;; phpactor.el ends here

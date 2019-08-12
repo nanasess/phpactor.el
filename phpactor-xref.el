@@ -6,7 +6,7 @@
 ;; Created: 05 Aug 2019
 ;; Version: 0.1.0
 ;; Keywords: tools, php
-;; Package-Requires: ((phpactor "0.1.0"))
+;; Package-Requires: ((phpactor "0.1.0")(seq "2"))
 ;; URL: https://github.com/emacs-php/phpactor.el
 ;; License: GPL-3.0-or-later
 
@@ -24,11 +24,12 @@
 ;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
 ;; xref backend using Phpactor.
+;; Inspiration comes from Nicolas Petton's https://github.com/NicolasPetton/xref-js2
 
 ;;; Code:
 (require 'xref)
+(require 'seq)
 
 ;;;###autoload
 (defun phpactor-xref-backend ()
