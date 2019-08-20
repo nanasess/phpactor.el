@@ -210,6 +210,35 @@ of GitHub.")
       (call-process-region (point-min) (point-max) phpactor-executable nil output nil "rpc" (format "--working-dir=%s" default-directory))
       (phpactor--parse-json output))))
 
+(defun phpactor--rpc-async (action arguments callback)
+  "Execute Phpactor `ACTION' subcommand with `ARGUMENTS'."
+  (phpactor--add-history 'phpactor--rpc (list action arguments))
+    (let ((json (phpactor--serialize-json (list :action action
+                                              :parameters arguments)))
+        (output (get-buffer-create "*Phpactor Output*"))
+        (coding-system-for-write 'utf-8)
+        (cwd (phpactor-get-working-dir)))
+    (with-current-buffer output (erase-buffer))
+    (with-current-buffer (get-buffer-create "*Phpactor Input*")
+      ;; `default-directory' is a *special variable* and buffer-local.
+      (setq default-directory cwd)
+      (erase-buffer)
+      (insert json)
+      (let* ((process-connection-type nil)
+	     (phpactor-process (start-process
+				"phpactor-executable"
+				output
+				phpactor-executable
+				"rpc" (format "--working-dir=%s" default-directory))))
+	(buffer-disable-undo (process-buffer phpactor-process))
+	(process-send-region phpactor-process (point-min) (point-max))
+	(process-send-eof phpactor-process)
+	(set-process-sentinel phpactor-process
+			      (lambda (process event)
+				(when (memq (process-status process) '(exit signal))
+				  (phpactor--parse-json output))))))))
+
+
 (defun phpactor--parse-json (buffer)
   "Read JSON string from BUFFER."
   (with-current-buffer buffer
