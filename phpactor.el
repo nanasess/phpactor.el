@@ -227,6 +227,7 @@ have to ensure a compatible version of phpactor is used."
   "Async execute Phpactor `ACTION' subcommand with `ARGUMENTS' and calling `CALLBACK' after process."
   (declare (indent 2))
   (phpactor--add-history 'phpactor--rpc-async (list action arguments))
+  (setq default-directory (phpactor-get-working-dir))
   (let* ((json (phpactor--serialize-json (list :action action
                                        :parameters arguments)))
          (coding-system-for-write 'utf-8)
