@@ -109,6 +109,11 @@ Here we create a temporary syntax table in order to add $ to symbols."
         (`annotation (company-phpactor--annotation arg))
         (`interactive (company-begin-backend 'company-phpactor))
         (`prefix (company-phpactor--grab-symbol))
+	(`doc-buffer (let ((doc-buffer (company-doc-buffer
+					(company-phpactor--annotation arg))))
+		       (with-current-buffer doc-buffer
+			 (visual-line-mode))
+		       doc-buffer))
         (`candidates (cons :async #'company-phpactor--get-candidates-async))))))
 
 (provide 'company-phpactor)
