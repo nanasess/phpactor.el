@@ -97,6 +97,64 @@ Here we create a temporary syntax table in order to add $ to symbols."
                 (plist-get (plist-get (plist-get response  :parameters) :value) :suggestions)))
           (funcall callback (company-phpactor--get-candidates suggestions)))))))
 
+(defvar-local company-phpactor--completion-cache nil
+  "Cached completion. It's an alist of (prefix . completion).
+PREFIX is the prefix string.
+COMPLETION is a cache-item created by `company-phpactor--cache-item-new'.")
+
+(defun company-phpactor--cache-put (prefix candidates)
+  "Set cache for PREFIX to be CANDIDATES.
+CANDIDATES is a cache item created by `company-phpactor--cache-item-new'."
+  (setq company-phpactor--completion-cache
+        (cons (cons prefix candidates)
+              company-phpactor--completion-cache)))
+
+(defun company-phpactor--cache-get (prefix)
+  "Get the cached completion for PREFIX.
+Return a cache item if cache for PREFIX exists. Otherwise return nil."
+  (-when-let* ((cached (company-phpactor--cache-find-closest prefix))
+               (subprefix (car cached))
+               (cache-item (cdr cached)))
+    (cond
+     ((string= prefix subprefix)
+      ;; Found exact match.
+      cache-item)
+     ((company-phpactor--cache-item-incomplete-p cache-item)
+      ;; Closest subprefix has incomplete result. Return nil to ask for narrowed
+      ;; down results.
+      nil)
+     (t
+      ;; Narrow down complete results for subprefix.
+      (let* ((candidates (company-phpactor--cache-item-candidates cache-item))
+             (new-candidates (company-phpactor--filter-candidates candidates prefix))
+             (new-cache (company-phpactor--cache-item-new new-candidates nil)))
+        (company-phpactor--cache-put prefix new-cache)
+        new-cache)))))
+
+(defun company-phpactor--cache-find-closest (prefix)
+  "Find cached completion with the longest sub-prefix of PREFIX.
+Return a cons cell of (subprefix . cache-item) or nil."
+  (let ((len (length prefix)))
+    (cl-dotimes (i (1+ len))
+      (when-let (item (assoc (substring prefix 0 (- len i))
+                             company-phpactor--completion-cache))
+        (cl-return item)))))
+
+(defun company-phpactor--cache-item-new (candidates incomplete)
+  "Create a new cache item.
+CANDIDATES: A list of strings. The completion candidates.
+INCOMPLETE: t or nil. Whether the candidates are incomplete or not."
+  (list :incomplete incomplete :candidates candidates))
+
+(defun company-phpactor--cache-item-incomplete-p (cache-item)
+  "Determine whether a CACHE-ITEM is incomplete."
+  (plist-get cache-item :incomplete))
+
+(defun company-phpactor--cache-item-candidates (cache-item)
+  "Get candidates from a CACHE-ITEM."
+  (message "cache hit: %s" (plist-get cache-item :candidates))
+  (plist-get cache-item :candidates))
+
 ;;;###autoload
 (defun company-phpactor (command &optional arg &rest ignored)
   "`company-mode' completion backend for Phpactor."
@@ -114,7 +172,8 @@ Here we create a temporary syntax table in order to add $ to symbols."
 		       (with-current-buffer doc-buffer
 			 (visual-line-mode))
 		       doc-buffer))
-        (`candidates (cons :async #'company-phpactor--get-candidates-async))))))
+        (`candidates (or (company-phpactor--cache-item-candidates (company-phpactor--cache-get arg))
+			 (cons :async #'company-phpactor--get-candidates-async)))))))
 
 (provide 'company-phpactor)
 ;;; company-phpactor.el ends here
